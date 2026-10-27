@@ -1,0 +1,86 @@
+<resources>
+    <string name="app_name">هشدار شارژ باتری</string>
+
+    <!-- وضعیت‌های اصلی باتری و هشدار -->
+    <string name="status_charging">در حال شارژ</string>
+    <string name="status_not_charging">شارژر متصل نیست</string>
+    <string name="status_alarm_active">هشدار فعال است</string>
+    <string name="status_target_reached">باتری به درصد هدف رسید</string>
+    <string name="status_completed_badge">انجام شد</string>
+
+    <!-- جزئیات باتری -->
+    <string name="current_battery_label">درصد فعلی باتری</string>
+    <string name="target_indicator_format">هدف: %1$s٪</string>
+    <string name="plug_type_ac">شارژر دیواری (AC)</string>
+    <string name="plug_type_usb">درگاه USB</string>
+    <string name="plug_type_wireless">شارژ بی‌سیم</string>
+    <string name="plug_type_dock">پایه شارژ</string>
+    <string name="plug_type_disconnected">بدون اتصال شارژر</string>
+    <string name="screen_off_assurance">پایش آرام در پس‌زمینه • صفحه گوشی خاموش می‌ماند</string>
+    <string name="last_completed_note">آخرین هشدار در %1$s٪ با موفقیت انجام شد</string>
+
+    <!-- بخش تعیین درصد هدف -->
+    <string name="target_section_title">درصد هدف شارژ</string>
+    <string name="target_section_subtitle">محدوده مجاز: ۱٪ تا ۱۰۰٪ (پیش‌فرض: ۸۰٪)</string>
+    <string name="target_input_label">درصد هدف (۱ تا ۱۰۰)</string>
+    <string name="target_input_locked_hint">برای تغییر درصد هدف، ابتدا هشدار فعال را غیرفعال کنید.</string>
+    <string name="cd_decrease_target">کاهش درصد هدف</string>
+    <string name="cd_increase_target">افزایش درصد هدف</string>
+    <string name="error_invalid_target">لطفاً عددی بین ۱ تا ۱۰۰ وارد کنید.</string>
+
+    <!-- بخش انتخاب صدای هشدار -->
+    <string name="sound_section_title">صدای هشدار</string>
+    <string name="selected_sound_label">فایل صوتی انتخاب‌شده:</string>
+    <string name="default_system_alarm_name">صدای پیش‌فرض هشدار سیستم</string>
+    <string name="btn_pick_system_sound">صداهای هشدار سیستم</string>
+    <string name="btn_pick_custom_file">انتخاب فایل صوتی</string>
+    <string name="ringtone_picker_title">انتخاب صدای هشدار باتری</string>
+    <string name="btn_test_sound">تست صدا</string>
+    <string name="btn_stop_test_sound">توقف تست صدا</string>
+    <string name="btn_stop_active_alarm_sound">قطع صدای هشدار در حال پخش</string>
+    <string name="audio_stream_label">کانال پخش صدا:</string>
+    <string name="stream_alarm">زنگ هشدار (Alarm)</string>
+    <string name="stream_notification">اعلان (Notification)</string>
+
+    <!-- دکمه‌های اصلی عملیات -->
+    <string name="btn_activate_alarm">فعال‌سازی هشدار</string>
+    <string name="btn_deactivate_alarm">غیرفعال کردن هشدار</string>
+
+    <!-- پیام‌های راهنما و خطا -->
+    <string name="msg_connect_charger_first">شارژر متصل نیست. لطفاً ابتدا گوشی را به شارژر متصل کنید و سپس هشدار را فعال نمایید.</string>
+    <string name="msg_already_above_target">درصد فعلی باتری (%1$s٪) بالاتر از درصد هدف (%2$s٪) است. لطفاً درصد هدف بالاتری انتخاب کنید.</string>
+    <string name="msg_already_at_target">باتری هم‌اکنون در درصد هدف (%1$s٪) قرار دارد. در صورت نیاز درصد بالاتری تعیین کنید یا شارژر را جدا نمایید.</string>
+    <string name="msg_alarm_activated">هشدار برای %1$s٪ فعال شد. می‌توانید برنامه را ببندید و صفحه گوشی را خاموش کنید.</string>
+    <string name="msg_alarm_deactivated">پایش هشدار شارژ غیرفعال شد.</string>
+    <string name="msg_notification_perm_note">پایش باتری فعال شد. فعال بودن مجوز اعلان در اندروید ۱۳ به بالا به پایداری نمایش وضعیت در پس‌زمینه کمک می‌کند.</string>
+    <string name="warning_stream_muted">توجه: صدای کانال انتخاب‌شده در تنظیمات گوشی صفر است یا حالت «مزاحم نشوید (سکوت کامل)» فعال است.</string>
+    <string name="cd_dismiss_message">بستن پیام</string>
+
+    <!-- بهینه‌سازی باتری -->
+    <string name="battery_opt_active_title">محافظت در برابر توقف پس‌زمینه</string>
+    <string name="battery_opt_active_subtitle">بهینه‌سازی باتری فعال است • برای عملکرد مطمئن تنظیم کنید</string>
+    <string name="battery_opt_unrestricted_title">اجرای پس‌زمینه بهینه است</string>
+    <string name="battery_opt_unrestricted_subtitle">محدودیت باتری برای این برنامه غیرفعال شده است</string>
+    <string name="battery_opt_sheet_title">تنظیم بهینه‌سازی باتری (Battery Optimization)</string>
+    <string name="battery_opt_sheet_desc">برخی گوشی‌های اندرویدی ممکن است سرویس‌های پس‌زمینه را هنگام خاموش بودن صفحه متوقف کنند. برای اطمینان کامل، در تنظیمات برنامه بخش «باتری» را روی حالت «بدون محدودیت (Unrestricted)» قرار دهید.</string>
+    <string name="btn_open_app_battery_settings">تنظیمات باتری این برنامه</string>
+    <string name="btn_open_system_battery_list">فهرست بهینه‌سازی باتری سیستم</string>
+    <string name="btn_close_sheet">متوجه شدم</string>
+    <string name="cd_battery_guard_illustration">تصویر راهنمای پایش باتری در حالت صفحه خاموش</string>
+
+    <!-- اعلان بی‌صدای سرویس پس‌زمینه -->
+    <string name="notif_channel_name">پایش بی‌صدای شارژ باتری</string>
+    <string name="notif_channel_desc">اعلان کم‌اهمیت و کاملاً بی‌صدا برای حفظ پایش درصد باتری در پس‌زمینه بدون روشن شدن صفحه</string>
+    <string name="notif_monitoring_title">پایش شارژ باتری فعال است</string>
+    <string name="notif_monitoring_body">هشدار صوتی در %1$s٪ پخش می‌شود (بدون روشن شدن صفحه)</string>
+    <string name="notif_action_stop">غیرفعال کردن</string>
+
+    <!-- انتخاب تم روشن و تیره -->
+    <string name="cd_select_theme">انتخاب تم برنامه</string>
+    <string name="theme_option_light">تم روشن</string>
+    <string name="theme_option_dark">تم تیره</string>
+    <string name="theme_option_system">هماهنگ با گوشی</string>
+    <string name="theme_short_light">روشن</string>
+    <string name="theme_short_dark">تیره</string>
+    <string name="theme_short_system">خودکار</string>
+</resources>

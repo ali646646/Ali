@@ -1,0 +1,6 @@
+{
+  "name": "هشدار شارژ باتری",
+  "description": "پایش هوشمند درصد شارژ باتری در پس‌زمینه بدون روشن شدن صفحه و پخش هشدار صوتی هنگام رسیدن به درصد هدف",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

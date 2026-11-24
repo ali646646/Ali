@@ -19,7 +19,10 @@ import com.example.model.AppThemeMode
 import com.example.model.AudioStreamPreference
 import com.example.model.LiveBatterySnapshot
 import com.example.service.BatteryMonitorService
+import com.example.util.ChargeTimeEstimator
+import com.example.util.EstimatedTimeState
 import com.example.util.PersianFormatters.normalizeDigitsToAscii
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +30,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 sealed interface FeedbackBanner {
@@ -54,7 +58,8 @@ data class BatteryAlarmUiState(
     val isStreamMutedWarning: Boolean = false,
     val isIgnoringBatteryOptimizations: Boolean = true,
     val feedbackBanner: FeedbackBanner? = null,
-    val themeMode: AppThemeMode = AppThemeMode.SYSTEM
+    val themeMode: AppThemeMode = AppThemeMode.SYSTEM,
+    val estimatedTimeState: EstimatedTimeState = EstimatedTimeState.Hidden
 )
 
 class MainViewModel(
@@ -70,10 +75,17 @@ class MainViewModel(
     private val feedbackBannerFlow = MutableStateFlow<FeedbackBanner?>(null)
     private val batteryOptIgnoredFlow = MutableStateFlow(checkIgnoringBatteryOptimizations())
     private val streamMutedFlow = MutableStateFlow(false)
+    private val estimateTickerFlow = MutableStateFlow(0L)
+
+    @Volatile
+    private var chargeSessionStartPct: Int? = null
+
+    @Volatile
+    private var chargeSessionStartTimeMs: Long? = null
 
     init {
         refreshSystemChecks()
-        // همگام‌سازی منطقی وضعیت ذخیره شده با وضعیت واقعی شارژر هنگام باز شدن برنامه
+        // همگام‌سازی منطقی وضعیت ذخیره شده با وضعیت واقعی شارژر و ثبت نقطه شروع شارژ برای تخمین دقیق زمان
         viewModelScope.launch {
             combine(
                 BatteryStateObserver.observeBatteryState(appContext),
@@ -84,14 +96,30 @@ class MainViewModel(
                 Triple(battery, status, target)
             }.collect { (battery, status, target) ->
                 if (!battery.isChargerConnected) {
+                    chargeSessionStartPct = null
+                    chargeSessionStartTimeMs = null
                     if (status == AlarmSessionStatus.ACTIVE) {
                         repository.deactivateMonitoring()
                     } else if (status == AlarmSessionStatus.COMPLETED) {
                         repository.clearCompletedOnUnplug()
                     }
-                } else if (status == AlarmSessionStatus.ACTIVE && battery.percentage < target) {
-                    runCatching { BatteryMonitorService.start(appContext, target) }
+                } else {
+                    if (chargeSessionStartPct == null) {
+                        chargeSessionStartPct = battery.percentage
+                        chargeSessionStartTimeMs = System.currentTimeMillis()
+                    }
+                    if (status == AlarmSessionStatus.ACTIVE && battery.percentage < target) {
+                        runCatching { BatteryMonitorService.start(appContext, target) }
+                    }
                 }
+            }
+        }
+
+        // بروزرسانی سبک تخمین زمان شارژ در زمانی که صفحه برنامه باز است
+        viewModelScope.launch {
+            while (isActive) {
+                delay(5_000L)
+                estimateTickerFlow.value = System.currentTimeMillis()
             }
         }
     }
@@ -117,8 +145,9 @@ class MainViewModel(
 
     val uiState: StateFlow<BatteryAlarmUiState> = combine(
         coreCombinedFlow,
-        uiExtrasFlow
-    ) { core, extras ->
+        uiExtrasFlow,
+        estimateTickerFlow
+    ) { core, extras, _ ->
         val effectiveSoundName = core.prefs.soundDisplayName?.takeIf { it.isNotBlank() }
             ?: run {
                 val uri = SoundResolver.resolveEffectiveUri(core.prefs.soundUriString)
@@ -132,6 +161,19 @@ class MainViewModel(
         val mutedNow = SoundResolver.isStreamMutedOrBlockedByDnd(
             appContext,
             core.prefs.audioStream
+        )
+
+        val isAlarmActive =
+            !extras.isInvalid && core.prefs.sessionStatus == AlarmSessionStatus.ACTIVE
+
+        val realEstimateState = ChargeTimeEstimator.estimate(
+            context = appContext,
+            currentPercentage = core.liveBattery.percentage,
+            targetPercentage = core.prefs.targetPercentage,
+            isChargerConnected = core.liveBattery.isChargerConnected,
+            isAlarmActive = isAlarmActive,
+            sessionStartPercentage = chargeSessionStartPct,
+            sessionStartTimeMs = chargeSessionStartTimeMs
         )
 
         BatteryAlarmUiState(
@@ -149,7 +191,8 @@ class MainViewModel(
             isStreamMutedWarning = extras.isMuted || mutedNow,
             isIgnoringBatteryOptimizations = extras.isBatteryOptIgnored,
             feedbackBanner = extras.banner,
-            themeMode = core.prefs.themeMode
+            themeMode = core.prefs.themeMode,
+            estimatedTimeState = realEstimateState
         )
     }.stateIn(
         scope = viewModelScope,
@@ -163,6 +206,7 @@ class MainViewModel(
 
     fun refreshSystemChecks() {
         batteryOptIgnoredFlow.value = checkIgnoringBatteryOptimizations()
+        estimateTickerFlow.value = System.currentTimeMillis()
         viewModelScope.launch {
             val prefs = repository.readCurrentPreferences()
             streamMutedFlow.value = SoundResolver.isStreamMutedOrBlockedByDnd(
@@ -270,7 +314,7 @@ class MainViewModel(
     }
 
     /**
-     * بررسی پیش‌نیازها پیش از فعال‌سازی هشدار؛ اگر همه شرایط برقرار بود true برمی‌گرداند.
+     * بررسی پیش‌نیازها پیش از فعال‌سازی هشدار؛ اگر همه شرایط برقرار بود مقدار هدف معتبر برمی‌گردد.
      */
     fun validateReadyToActivate(): Int? {
         val currentState = uiState.value
@@ -312,6 +356,13 @@ class MainViewModel(
         AlarmAudioPlayer.stopTestOnly()
         targetInputDraft.value = null
         isInputInvalidFlow.value = false
+        estimateTickerFlow.value = System.currentTimeMillis()
+
+        val liveNow = BatteryStateObserver.readCurrentSnapshot(appContext)
+        if (chargeSessionStartPct == null && liveNow.isChargerConnected) {
+            chargeSessionStartPct = liveNow.percentage
+            chargeSessionStartTimeMs = System.currentTimeMillis()
+        }
 
         viewModelScope.launch {
             repository.setTargetPercentage(validatedTarget)

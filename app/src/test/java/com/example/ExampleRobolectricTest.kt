@@ -14,6 +14,9 @@ import com.example.model.AppThemeMode
 import com.example.service.BatteryMonitorService
 import com.example.ui.FeedbackBanner
 import com.example.ui.MainViewModel
+import com.example.util.ChargeTimeEstimator
+import com.example.util.EstimatedTimeState
+import com.example.util.HardwareBatteryMetrics
 import com.example.util.PersianFormatters.normalizeDigitsToAscii
 import com.example.util.PersianFormatters.toPersianDigits
 import java.util.concurrent.atomic.AtomicInteger
@@ -61,6 +64,8 @@ class ExampleRobolectricTest {
 
     @After
     fun tearDown() {
+        ChargeTimeEstimator.testChargeTimeRemainingProvider = null
+        ChargeTimeEstimator.testHardwareMetricsProvider = null
         AlarmAudioPlayer.testPlaybackInterceptor = null
         AlarmAudioPlayer.stopAll()
         AlarmPreferencesRepository.overrideDataStoreForTesting = null
@@ -244,6 +249,56 @@ class ExampleRobolectricTest {
         idleAndWait(150)
         assertEquals(AppThemeMode.LIGHT, viewModel.uiState.value.themeMode)
         assertEquals(AppThemeMode.LIGHT, repository.readCurrentPreferences().themeMode)
+    }
+
+    @Test
+    fun `estimated time stays hidden until alarm is activated and computes after activation`(): Unit = runBlocking {
+        // باتری روی ۶۰٪ و شارژر متصل؛ زمان کل تا ۱۰۰٪ معادل ۴۰ دقیقه (۲٬۴۰۰٬۰۰۰ میلی‌ثانیه)
+        ChargeTimeEstimator.testChargeTimeRemainingProvider = { 2_400_000L }
+        sendStickyBatteryBroadcast(
+            level = 60,
+            plugged = BatteryManager.BATTERY_PLUGGED_AC,
+            status = BatteryManager.BATTERY_STATUS_CHARGING
+        )
+        val viewModel = MainViewModel(appContext, repository)
+        idleAndWait(100)
+
+        // قبل از فعال‌سازی هشدار (حتی با انتخاب عدد ۸۰٪) نباید زمان تخمینی نمایش داده شود
+        viewModel.setTargetPercentagePresetOrStep(80)
+        idleAndWait(100)
+        assertEquals(EstimatedTimeState.Hidden, viewModel.uiState.value.estimatedTimeState)
+
+        // پس از فعال‌سازی هشدار، نصف فاصله تا ۱۰۰٪ یعنی ۲۰ دقیقه محاسبه و نمایش داده شود
+        viewModel.activateAlarmConfirmed(80)
+        idleAndWait(150)
+
+        assertEquals(EstimatedTimeState.Ready(20), viewModel.uiState.value.estimatedTimeState)
+    }
+
+    @Test
+    fun `hardware fallback calculates estimate when OS remaining is unavailable and current is in mA`() {
+        // شبیه‌سازی گوشی‌هایی که computeChargeTimeRemaining=-1 دارند و جریان را بر حسب mA و با مقدار منفی می‌دهند
+        ChargeTimeEstimator.testHardwareMetricsProvider = {
+            HardwareBatteryMetrics(
+                systemFullRemainingMs = -1L,
+                chargeCounterRaw = 3_000_000L, // ۳۰۰۰ mAh در ۶۰٪ -> ظرفیت کل ۵۰۰۰ mAh
+                currentAvgRaw = Long.MIN_VALUE,
+                currentNowRaw = -2_000L, // ۲۰۰۰ mA منفی (در واحد mA نه µA)
+                maxChargingCurrentUa = -1
+            )
+        }
+
+        val state = ChargeTimeEstimator.estimate(
+            context = appContext,
+            currentPercentage = 60,
+            targetPercentage = 80, // ۲۰٪ باقی‌مانده = ۱۰۰۰ mAh با جریان ۲۰۰۰ mA = ۳۰ دقیقه
+            isChargerConnected = true,
+            isAlarmActive = true,
+            sessionStartPercentage = null,
+            sessionStartTimeMs = null
+        )
+
+        assertEquals(EstimatedTimeState.Ready(30), state)
     }
 
     private fun idleAndWait(ms: Long) {

@@ -14,8 +14,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,6 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -66,7 +65,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -81,10 +79,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -101,22 +102,20 @@ import com.example.model.AudioStreamPreference
 import com.example.ui.components.BatteryGaugeCard
 import com.example.ui.components.BatteryOptBottomSheet
 import com.example.util.PersianFormatters.toPersianDigits
-import kotlin.math.roundToInt
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun BatteryAlarmScreen(
     viewModel: MainViewModel
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
     var showBatteryOptSheet by rememberSaveable { mutableStateOf(false) }
     var showThemeMenu by remember { mutableStateOf(false) }
     var pendingValidatedTarget by remember { mutableIntStateOf(-1) }
 
-    // بروزرسانی وضعیت Battery Optimization و صدای سیستم هنگام بازگشت کاربر به برنامه
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -129,7 +128,6 @@ fun BatteryAlarmScreen(
         }
     }
 
-    // انتخابگر صداهای هشدار/اعلان داخلی سیستم (RingtonePicker)
     val systemRingtoneLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -147,7 +145,6 @@ fun BatteryAlarmScreen(
         }
     }
 
-    // انتخابگر فایل صوتی از حافظه گوشی بدون نیاز به مجوز دسترسی به حافظه (SAF OpenDocument)
     val customAudioLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -162,7 +159,6 @@ fun BatteryAlarmScreen(
         }
     }
 
-    // درخواست مجوز اعلان در اندروید ۱۳ به بالا هنگام فعال‌سازی سرویس پس‌زمینه
     val notificationPermLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -193,20 +189,20 @@ fun BatteryAlarmScreen(
                     .fillMaxWidth()
                     .widthIn(max = 560.dp)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // سربرگ ساده و تمیز برنامه
+                // سربرگ فشرده و تمیز برنامه
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                        .padding(horizontal = 2.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = stringResource(R.string.app_name),
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.onBackground
                     )
 
@@ -227,7 +223,7 @@ fun BatteryAlarmScreen(
                                 Row(
                                     modifier = Modifier.padding(horizontal = 10.dp),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
                                 ) {
                                     val (themeIcon, themeShortLabel) = when (uiState.themeMode) {
                                         AppThemeMode.LIGHT ->
@@ -317,12 +313,13 @@ fun BatteryAlarmScreen(
                     }
                 }
 
-                // ۱ و ۲. کارت نمایش درصد فعلی باتری و وضعیت باتری/هشدار
+                // ۱ و ۲. کارت نمایش درصد فعلی، درصد هدف، تخمین زمان و وضعیت باتری (بدون نیم‌دایره)
                 BatteryGaugeCard(
                     liveBattery = uiState.liveBattery,
                     targetPercentage = uiState.targetPercentage,
                     sessionStatus = uiState.sessionStatus,
-                    lastCompletedTarget = uiState.lastCompletedTarget
+                    lastCompletedTarget = uiState.lastCompletedTarget,
+                    estimatedTimeState = uiState.estimatedTimeState
                 )
 
                 // دکمه فوری قطع صدای هشدار در صورتی که هم‌اکنون در حال پخش باشد
@@ -331,7 +328,7 @@ fun BatteryAlarmScreen(
                         onClick = { viewModel.stopActiveAlarmSoundOnly() },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp)
+                            .height(48.dp)
                             .testTag("stop_ringing_alarm_button"),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.tertiary,
@@ -341,9 +338,10 @@ fun BatteryAlarmScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Stop,
-                            contentDescription = null
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = stringResource(R.string.btn_stop_active_alarm_sound),
                             style = MaterialTheme.typography.labelLarge
@@ -351,7 +349,7 @@ fun BatteryAlarmScreen(
                     }
                 }
 
-                // بنر پیام راهنما یا خطا (مانند عدم اتصال شارژر یا بالاتر بودن درصد فعلی باتری)
+                // بنر پیام راهنما یا خطا
                 uiState.feedbackBanner?.let { banner ->
                     FeedbackBannerCard(
                         banner = banner,
@@ -359,7 +357,7 @@ fun BatteryAlarmScreen(
                     )
                 }
 
-                // ۳. کارت تعیین درصد هدف شارژ (پیش‌فرض ۸۰٪، بازه ۱٪ تا ۱۰۰٪)
+                // ۳. کارت تعیین درصد هدف شارژ (بدون نوار لغزان، فشرده برای جا شدن در یک صفحه)
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -373,20 +371,25 @@ fun BatteryAlarmScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
                                 text = stringResource(R.string.target_section_title),
-                                style = MaterialTheme.typography.titleMedium,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = if (isAlarmCurrentlyActive) {
                                     stringResource(R.string.target_input_locked_hint)
                                 } else {
-                                    stringResource(R.string.target_section_subtitle)
+                                    stringResource(R.string.target_range_inline)
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -396,7 +399,10 @@ fun BatteryAlarmScreen(
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(
+                                12.dp,
+                                Alignment.CenterHorizontally
+                            )
                         ) {
                             FilledIconButton(
                                 onClick = {
@@ -425,13 +431,28 @@ fun BatteryAlarmScreen(
                                 enabled = !isAlarmCurrentlyActive,
                                 singleLine = true,
                                 isError = uiState.isTargetInputInvalid,
-                                label = { Text(stringResource(R.string.target_input_label)) },
-                                suffix = { Text("٪") },
+                                textStyle = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
+                                ),
+                                suffix = {
+                                    Text(
+                                        text = "٪",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                },
                                 keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Number
+                                    keyboardType = KeyboardType.Number,
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onDone = {
+                                        focusManager.clearFocus()
+                                    }
                                 ),
                                 modifier = Modifier
-                                    .weight(1f)
+                                    .width(104.dp)
                                     .testTag("target_percentage_input"),
                                 shape = MaterialTheme.shapes.medium
                             )
@@ -466,32 +487,31 @@ fun BatteryAlarmScreen(
                             )
                         }
 
-                        Slider(
-                            value = uiState.targetPercentage.toFloat(),
-                            onValueChange = { value ->
-                                viewModel.setTargetPercentagePresetOrStep(value.roundToInt())
-                            },
-                            enabled = !isAlarmCurrentlyActive,
-                            valueRange = 1f..100f,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("target_percentage_slider")
-                        )
-
-                        // میانبرهای سریع درصدهای پرکاربرد
+                        // میانبرهای سریع درصدهای پرکاربرد در یک ردیف ثابت بدون شکستن به خط دوم
                         val presets = listOf(75, 80, 85, 90, 100)
-                        FlowRow(
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             presets.forEach { preset ->
+                                val isSelected =
+                                    uiState.targetPercentage == preset && !uiState.isTargetInputInvalid
                                 FilterChip(
-                                    selected = uiState.targetPercentage == preset && !uiState.isTargetInputInvalid,
+                                    selected = isSelected,
                                     onClick = { viewModel.setTargetPercentagePresetOrStep(preset) },
                                     enabled = !isAlarmCurrentlyActive,
-                                    label = { Text("${preset.toPersianDigits()}٪") },
-                                    modifier = Modifier.testTag("preset_chip_$preset")
+                                    label = {
+                                        Text(
+                                            text = "${preset.toPersianDigits()}٪",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            textAlign = TextAlign.Center,
+                                            maxLines = 1,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("preset_chip_$preset")
                                 )
                             }
                         }
@@ -512,56 +532,86 @@ fun BatteryAlarmScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
-                            text = stringResource(R.string.sound_section_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-
-                        // نمایش نام فایل صوتی انتخاب‌شده
-                        Surface(
+                        // ردیف نام فایل صوتی انتخاب‌شده + دکمه تست صدا در کنار هم
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.medium,
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Row(
+                            Surface(
+                                modifier = Modifier.weight(1f),
+                                shape = MaterialTheme.shapes.medium,
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Outlined.VolumeUp,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = stringResource(R.string.selected_sound_label),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = uiState.selectedSoundName,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.testTag("selected_sound_name")
+                                        )
+                                    }
+                                }
+                            }
+
+                            FilledTonalButton(
+                                onClick = { viewModel.toggleTestSound() },
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .height(48.dp)
+                                    .testTag("test_sound_button"),
+                                contentPadding = PaddingValues(horizontal = 12.dp),
+                                shape = MaterialTheme.shapes.medium
                             ) {
                                 Icon(
-                                    imageVector = Icons.AutoMirrored.Outlined.VolumeUp,
+                                    imageVector = if (uiState.isTestSoundPlaying) {
+                                        Icons.Filled.Stop
+                                    } else {
+                                        Icons.Filled.PlayArrow
+                                    },
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary
+                                    modifier = Modifier.size(18.dp)
                                 )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = stringResource(R.string.selected_sound_label),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = uiState.selectedSoundName,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.testTag("selected_sound_name")
-                                    )
-                                }
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (uiState.isTestSoundPlaying) {
+                                        stringResource(R.string.btn_stop_test_sound)
+                                    } else {
+                                        stringResource(R.string.btn_test_sound)
+                                    },
+                                    style = MaterialTheme.typography.labelLarge,
+                                    maxLines = 1
+                                )
                             }
                         }
 
-                        // دکمه‌های انتخاب صدای سیستم (شامل Alarm) و فایل صوتی گوشی
+                        // دکمه‌های انتخاب صدای سیستم و فایل صوتی گوشی
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             OutlinedButton(
                                 onClick = {
@@ -597,18 +647,18 @@ fun BatteryAlarmScreen(
                                     .weight(1f)
                                     .height(48.dp)
                                     .testTag("pick_system_sound_button"),
-                                contentPadding = PaddingValues(horizontal = 10.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp),
                                 shape = MaterialTheme.shapes.medium
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.LibraryMusic,
                                     contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(17.dp)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(5.dp))
                                 Text(
                                     text = stringResource(R.string.btn_pick_system_sound),
-                                    style = MaterialTheme.typography.labelLarge,
+                                    style = MaterialTheme.typography.labelMedium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -622,18 +672,18 @@ fun BatteryAlarmScreen(
                                     .weight(1f)
                                     .height(48.dp)
                                     .testTag("pick_audio_file_button"),
-                                contentPadding = PaddingValues(horizontal = 10.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp),
                                 shape = MaterialTheme.shapes.medium
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.AudioFile,
                                     contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(17.dp)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(5.dp))
                                 Text(
                                     text = stringResource(R.string.btn_pick_custom_file),
-                                    style = MaterialTheme.typography.labelLarge,
+                                    style = MaterialTheme.typography.labelMedium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -644,7 +694,7 @@ fun BatteryAlarmScreen(
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
                                 text = stringResource(R.string.audio_stream_label),
@@ -656,7 +706,13 @@ fun BatteryAlarmScreen(
                                 onClick = {
                                     viewModel.onAudioStreamChanged(AudioStreamPreference.ALARM)
                                 },
-                                label = { Text(stringResource(R.string.stream_alarm)) },
+                                label = {
+                                    Text(
+                                        text = stringResource(R.string.stream_alarm),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        maxLines = 1
+                                    )
+                                },
                                 modifier = Modifier.testTag("stream_alarm_chip")
                             )
                             FilterChip(
@@ -664,12 +720,17 @@ fun BatteryAlarmScreen(
                                 onClick = {
                                     viewModel.onAudioStreamChanged(AudioStreamPreference.NOTIFICATION)
                                 },
-                                label = { Text(stringResource(R.string.stream_notification)) },
+                                label = {
+                                    Text(
+                                        text = stringResource(R.string.stream_notification),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        maxLines = 1
+                                    )
+                                },
                                 modifier = Modifier.testTag("stream_notification_chip")
                             )
                         }
 
-                        // هشدار واقعی بودن حالت بی‌صدا یا صفر بودن ولوم کانال انتخاب‌شده
                         if (uiState.isStreamMutedWarning) {
                             Surface(
                                 shape = MaterialTheme.shapes.small,
@@ -679,16 +740,16 @@ fun BatteryAlarmScreen(
                                     .testTag("muted_stream_warning")
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(10.dp),
+                                    modifier = Modifier.padding(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Outlined.VolumeOff,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(16.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = stringResource(R.string.warning_stream_muted),
                                         style = MaterialTheme.typography.bodySmall,
@@ -697,44 +758,17 @@ fun BatteryAlarmScreen(
                                 }
                             }
                         }
-
-                        // ۶. دکمه «تست صدا»
-                        FilledTonalButton(
-                            onClick = { viewModel.toggleTestSound() },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp)
-                                .testTag("test_sound_button"),
-                            shape = MaterialTheme.shapes.medium
-                        ) {
-                            Icon(
-                                imageVector = if (uiState.isTestSoundPlaying) {
-                                    Icons.Filled.Stop
-                                } else {
-                                    Icons.Filled.PlayArrow
-                                },
-                                contentDescription = null
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = if (uiState.isTestSoundPlaying) {
-                                    stringResource(R.string.btn_stop_test_sound)
-                                } else {
-                                    stringResource(R.string.btn_test_sound)
-                                },
-                                style = MaterialTheme.typography.labelLarge
-                            )
-                        }
                     }
                 }
 
-                // ۷ و ۸. دکمه‌های اصلی «فعال‌سازی هشدار» و «غیرفعال کردن هشدار»
-                Column(
+                // ۷ و ۸. دکمه‌های اصلی «فعال‌سازی هشدار» و «غیرفعال کردن هشدار» کنار هم برای جا شدن در یک صفحه
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
                         onClick = {
+                            focusManager.clearFocus()
                             val validatedTarget = viewModel.validateReadyToActivate()
                             if (validatedTarget != null) {
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -754,19 +788,23 @@ fun BatteryAlarmScreen(
                         },
                         enabled = !isAlarmCurrentlyActive,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(54.dp)
+                            .weight(1f)
+                            .height(50.dp)
                             .testTag("activate_alarm_button"),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
                         shape = MaterialTheme.shapes.medium
                     ) {
                         Icon(
                             imageVector = Icons.Filled.NotificationsActive,
-                            contentDescription = null
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(5.dp))
                         Text(
                             text = stringResource(R.string.btn_activate_alarm),
-                            style = MaterialTheme.typography.titleMedium
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
@@ -774,9 +812,10 @@ fun BatteryAlarmScreen(
                         onClick = { viewModel.deactivateAlarm() },
                         enabled = uiState.sessionStatus != AlarmSessionStatus.IDLE || uiState.isAlarmSoundPlaying,
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .weight(1f)
                             .height(50.dp)
                             .testTag("deactivate_alarm_button"),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
                         shape = MaterialTheme.shapes.medium,
                         border = BorderStroke(
                             width = 1.dp,
@@ -789,20 +828,24 @@ fun BatteryAlarmScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.NotificationsOff,
-                            contentDescription = null
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(5.dp))
                         Text(
                             text = stringResource(R.string.btn_deactivate_alarm),
-                            style = MaterialTheme.typography.labelLarge
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
-                // کارت ساده تنظیم Battery Optimization برای پایداری در پس‌زمینه
+                // نوار فشرده وضعیت بهینه‌سازی باتری
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .height(48.dp)
                         .clip(MaterialTheme.shapes.medium)
                         .clickable { showBatteryOptSheet = true }
                         .testTag("battery_opt_card"),
@@ -815,8 +858,8 @@ fun BatteryAlarmScreen(
                 ) {
                     Row(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -830,33 +873,25 @@ fun BatteryAlarmScreen(
                                 MaterialTheme.colorScheme.primary
                             } else {
                                 MaterialTheme.colorScheme.tertiary
-                            }
+                            },
+                            modifier = Modifier.size(18.dp)
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = if (uiState.isIgnoringBatteryOptimizations) {
-                                    stringResource(R.string.battery_opt_unrestricted_title)
-                                } else {
-                                    stringResource(R.string.battery_opt_active_title)
-                                },
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = if (uiState.isIgnoringBatteryOptimizations) {
-                                    stringResource(R.string.battery_opt_unrestricted_subtitle)
-                                } else {
-                                    stringResource(R.string.battery_opt_active_subtitle)
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (uiState.isIgnoringBatteryOptimizations) {
+                                stringResource(R.string.battery_opt_unrestricted_title)
+                            } else {
+                                stringResource(R.string.battery_opt_active_subtitle)
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
             }
         }
     }
@@ -929,19 +964,19 @@ private fun FeedbackBannerCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 14.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
+                .padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = if (isWarning) Icons.Outlined.WarningAmber else Icons.Outlined.Info,
                 contentDescription = null,
                 tint = contentColor,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(18.dp)
             )
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = messageText,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodySmall,
                 color = contentColor,
                 modifier = Modifier.weight(1f)
             )
@@ -953,7 +988,7 @@ private fun FeedbackBannerCard(
                     imageVector = Icons.Outlined.Close,
                     contentDescription = stringResource(R.string.cd_dismiss_message),
                     tint = contentColor,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(16.dp)
                 )
             }
         }

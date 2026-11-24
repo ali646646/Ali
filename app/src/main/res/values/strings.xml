@@ -8,22 +8,29 @@
     <string name="status_target_reached">باتری به درصد هدف رسید</string>
     <string name="status_completed_badge">انجام شد</string>
 
-    <!-- جزئیات باتری -->
+    <!-- جزئیات باتری و تخمین زمان -->
     <string name="current_battery_label">درصد فعلی باتری</string>
+    <string name="current_battery_short">شارژ فعلی</string>
+    <string name="target_battery_short">شارژ هدف</string>
     <string name="target_indicator_format">هدف: %1$s٪</string>
+    <string name="estimate_calculating">در حال محاسبه زمان…</string>
+    <string name="estimate_minutes">حدود %1$s دقیقه</string>
+    <string name="estimate_hours">حدود %1$s ساعت</string>
+    <string name="estimate_hours_minutes">حدود %1$s ساعت و %2$s دقیقه</string>
     <string name="plug_type_ac">شارژر دیواری (AC)</string>
     <string name="plug_type_usb">درگاه USB</string>
     <string name="plug_type_wireless">شارژ بی‌سیم</string>
     <string name="plug_type_dock">پایه شارژ</string>
     <string name="plug_type_disconnected">بدون اتصال شارژر</string>
-    <string name="screen_off_assurance">پایش آرام در پس‌زمینه • صفحه گوشی خاموش می‌ماند</string>
-    <string name="last_completed_note">آخرین هشدار در %1$s٪ با موفقیت انجام شد</string>
+    <string name="screen_off_assurance">پایش آرام در پس‌زمینه • صفحه خاموش می‌ماند</string>
+    <string name="last_completed_note">آخرین هشدار در %1$s٪ انجام شد</string>
 
     <!-- بخش تعیین درصد هدف -->
     <string name="target_section_title">درصد هدف شارژ</string>
+    <string name="target_range_inline">۱٪ تا ۱۰۰٪</string>
     <string name="target_section_subtitle">محدوده مجاز: ۱٪ تا ۱۰۰٪ (پیش‌فرض: ۸۰٪)</string>
-    <string name="target_input_label">درصد هدف (۱ تا ۱۰۰)</string>
-    <string name="target_input_locked_hint">برای تغییر درصد هدف، ابتدا هشدار فعال را غیرفعال کنید.</string>
+    <string name="target_input_label">درصد هدف</string>
+    <string name="target_input_locked_hint">برای تغییر، هشدار را غیرفعال کنید</string>
     <string name="cd_decrease_target">کاهش درصد هدف</string>
     <string name="cd_increase_target">افزایش درصد هدف</string>
     <string name="error_invalid_target">لطفاً عددی بین ۱ تا ۱۰۰ وارد کنید.</string>
